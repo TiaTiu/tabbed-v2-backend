@@ -18,9 +18,5 @@ typing-inspection==0.4.3
 typing_extensions==4.16.0
 urllib3==2.7.0
 uvicorn==0.52.1
-<<<<<<< HEAD
 python-dotenv==1.0.1
 psycopg2-binary
-=======
-python-dotenv==1.0.1
->>>>>>> c597b06b9c82afdaf28a4d8123b2a5dec960c792

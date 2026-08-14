@@ -10,7 +10,10 @@ import schemas
 from settlements import calculate_session_debts
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
+<<<<<<< HEAD
 
+=======
+>>>>>>> c597b06b9c82afdaf28a4d8123b2a5dec960c792
 load_dotenv()
 
 models.Base.metadata.create_all(bind=database.engine)
@@ -132,7 +135,11 @@ async def gemini_bulk_upload_receipts(
 ):
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
+<<<<<<< HEAD
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY is missing on Railway.")
+=======
+        return {"error": "GEMINI_API_KEY environment variable is missing."}
+>>>>>>> c597b06b9c82afdaf28a4d8123b2a5dec960c792
         
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
     created_receipts = []
@@ -161,10 +168,13 @@ async def gemini_bulk_upload_receipts(
             response = requests.post(url, json=payload, headers=headers)
             response_data = response.json()
             
+<<<<<<< HEAD
             if "error" in response_data:
                 error_msg = response_data["error"].get("message", "Unknown API Error")
                 raise HTTPException(status_code=400, detail=f"Gemini API rejected the image: {error_msg}")
             
+=======
+>>>>>>> c597b06b9c82afdaf28a4d8123b2a5dec960c792
             text_response = ""
             finish_reason = None
             if "candidates" in response_data and len(response_data["candidates"]) > 0:
@@ -185,6 +195,14 @@ async def gemini_bulk_upload_receipts(
             cleaned_text = cleaned_text.strip()
 
             if not cleaned_text:
+<<<<<<< HEAD
+=======
+                print(
+                    f"Gemini returned no usable text for {file.filename} "
+                    f"(finishReason={finish_reason}). Skipping instead of "
+                    f"creating a $0 receipt. Raw response: {response_data}"
+                )
+>>>>>>> c597b06b9c82afdaf28a4d8123b2a5dec960c792
                 continue
 
             data = json.loads(cleaned_text)
@@ -232,9 +250,13 @@ async def gemini_bulk_upload_receipts(
             created_receipts.append(db_receipt)
             
         except Exception as e:
+<<<<<<< HEAD
             if isinstance(e, HTTPException):
                 raise e
             print(f"Error processing {file.filename}: {e}")
             raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+=======
+            print(f"Error processing {file.filename}: {e}")
+>>>>>>> c597b06b9c82afdaf28a4d8123b2a5dec960c792
             
     return {"uploaded": len(created_receipts), "receipts": created_receipts}

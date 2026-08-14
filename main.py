@@ -29,6 +29,10 @@ app.add_middleware(
 def read_root():
     return {"message": "Welcome to Tabbed V2 API - Multi-Receipt Ledger System"}
 
+@app.get("/sessions/", response_model=list[schemas.SessionResponse])
+def get_sessions(db: Session = Depends(database.get_db)):
+    return db.query(models.SessionModel).all()
+
 @app.post("/sessions/", response_model=schemas.SessionResponse)
 def create_session(session: schemas.SessionCreate, db: Session = Depends(database.get_db)):
     db_session = models.SessionModel(name=session.name)
@@ -144,7 +148,7 @@ async def gemini_bulk_upload_receipts(
     if not api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY is missing on Railway.")
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     created_receipts = []
     
     for file in files:
@@ -176,10 +180,8 @@ async def gemini_bulk_upload_receipts(
                 raise HTTPException(status_code=400, detail=f"Gemini API rejected the image: {error_msg}")
             
             text_response = ""
-            finish_reason = None
             if "candidates" in response_data and len(response_data["candidates"]) > 0:
                 candidate = response_data["candidates"][0]
-                finish_reason = candidate.get("finishReason")
                 parts = candidate.get("content", {}).get("parts", [])
                 text_response = "".join(
                     p.get("text", "") for p in parts if not p.get("thought")

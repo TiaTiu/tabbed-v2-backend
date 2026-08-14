@@ -45,6 +45,16 @@ def create_participant(participant: schemas.ParticipantCreate, db: Session = Dep
     db.refresh(db_participant)
     return db_participant
 
+@app.delete("/participants/{participant_id}")
+def delete_participant(participant_id: int, db: Session = Depends(database.get_db)):
+    db_participant = db.query(models.ParticipantModel).filter(models.ParticipantModel.id == participant_id).first()
+    if not db_participant:
+        raise HTTPException(status_code=404, detail="Participant not found")
+    
+    db.delete(db_participant)
+    db.commit()
+    return {"message": "Participant deleted successfully"}
+
 @app.post("/receipts/", response_model=schemas.ReceiptResponse)
 def create_receipt(receipt: schemas.ReceiptCreate, db: Session = Depends(database.get_db)):
     db_receipt = models.ReceiptModel(

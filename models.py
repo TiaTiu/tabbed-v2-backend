@@ -1,0 +1,60 @@
+from database import Base
+from sqlalchemy import Column, Float, ForeignKey, Integer, String, Table
+from sqlalchemy.orm import relationship
+
+item_participant_association = Table(
+    "item_participants",
+    Base.metadata,
+    Column("item_id", Integer, ForeignKey("items.id"), primary_key=True),
+    Column("participant_id", Integer, ForeignKey("participants.id"), primary_key=True)
+)
+
+class SessionModel(Base):
+  __tablename__ = "sessions"
+  id = Column(Integer, primary_key=True, index=True)
+  name = Column(String, index=True)
+
+  receipts = relationship("ReceiptModel", back_populates="session", cascade="all, delete-orphan")
+  participants = relationship("ParticipantModel", back_populates="session", cascade="all, delete-orphan")
+
+class ParticipantModel(Base):
+  __tablename__ = "participants"
+  id = Column(Integer, primary_key=True, index=True)
+  name = Column(String, index=True)
+  session_id = Column(Integer, ForeignKey("sessions.id"))
+
+  session = relationship("SessionModel", back_populates="participants")
+  items = relationship("ItemModel", secondary=item_participant_association, back_populates="participants")
+
+class ReceiptModel(Base):
+  __tablename__ = "receipts"
+  id = Column(Integer, primary_key=True, index=True)
+  title = Column(String)
+  total_amount = Column(Float)
+  image_url = Column(String, nullable=True)
+  session_id = Column(Integer, ForeignKey("sessions.id"))
+
+  session = relationship("SessionModel", back_populates="receipts")
+  items = relationship("ItemModel", back_populates="receipt", cascade="all, delete-orphan")
+  payers = relationship("ReceiptPayerModel", back_populates="receipt", cascade="all, delete-orphan")
+
+class ReceiptPayerModel(Base):
+  __tablename__ = "receipt_payers"
+  receipt_id = Column(Integer, ForeignKey("receipts.id"), primary_key=True)
+  participant_id = Column(Integer, ForeignKey("participants.id"), primary_key=True)
+  amount_paid = Column(Float, default=0.0)
+
+  receipt = relationship("ReceiptModel", back_populates="payers")
+  participant = relationship("ParticipantModel")
+
+class ItemModel(Base):
+  __tablename__ = "items"
+  __table_args__ = {'extend_existing': True}
+  id = Column(Integer, primary_key=True, index=True)
+  name = Column(String)
+  price = Column(Float)
+  quantity = Column(Integer, default=1)
+  receipt_id = Column(Integer, ForeignKey("receipts.id"))
+
+  receipt = relationship("ReceiptModel", back_populates="items")
+  participants = relationship("ParticipantModel", secondary=item_participant_association, back_populates="items")

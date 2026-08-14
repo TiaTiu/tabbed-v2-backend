@@ -1,0 +1,90 @@
+def calculate_session_debts(session_data):
+    participants = session_data.participants
+    receipts = session_data.receipts
+
+    if not participants:
+        return {"total_session_spend": 0, "share_per_person": 0, "settlements": []}
+
+    num_participants = len(participants)
+    total_spend = sum(receipt.total_amount for receipt in receipts)
+    share_per_person = total_spend / num_participants if num_participants > 0 else 0
+
+    balances = {p.id: {"name": p.name, "net": 0.0} for p in participants}
+
+    for receipt in receipts:
+        # 1. Credit what participants paid
+        receipt_paid_total = 0.0
+        for payer_info in receipt.payers:
+            if payer_info.participant_id in balances:
+                balances[payer_info.participant_id]["net"] += payer_info.amount_paid
+                receipt_paid_total += payer_info.amount_paid
+
+        # Fallback: If nobody specified who paid for this receipt, split the receipt cost evenly as paid
+        if receipt_paid_total == 0 and num_participants > 0:
+            even_paid = receipt.total_amount / num_participants
+            for p_id in balances:
+                balances[p_id]["net"] += even_paid
+
+        assigned_total = 0.0
+        has_assignments = any(len(item.participants) > 0 for item in receipt.items)
+
+        if has_assignments:
+            # 2. Debit based on assigned items
+            for item in receipt.items:
+                if item.participants:
+                    split_amount = item.price / len(item.participants)
+                    for p in item.participants:
+                        if p.id in balances:
+                            balances[p.id]["net"] -= split_amount
+                    assigned_total += item.price
+
+            # Distribute unassigned remainder (tax/tip) evenly
+            remainder = receipt.total_amount - assigned_total
+            if remainder != 0 and num_participants > 0:
+                even_split = remainder / num_participants
+                for p_id in balances:
+                    balances[p_id]["net"] -= even_split
+        else:
+            # Fallback: If no items are assigned yet for this receipt, split the whole receipt evenly
+            if num_participants > 0:
+                even_split = receipt.total_amount / num_participants
+                for p_id in balances:
+                    balances[p_id]["net"] -= even_split
+
+    debtors = []
+    creditors = []
+    for p_id, data in balances.items():
+        if data["net"] < -0.01:
+            debtors.append({"id": p_id, "name": data["name"], "amount": -data["net"]})
+        elif data["net"] > 0.01:
+            creditors.append({"id": p_id, "name": data["name"], "amount": data["net"]})
+
+    settlements = []
+    d_idx = 0
+    c_idx = 0
+
+    while d_idx < len(debtors) and c_idx < len(creditors):
+        debtor = debtors[d_idx]
+        creditor = creditors[c_idx]
+
+        transfer_amount = min(debtor["amount"], creditor["amount"])
+        
+        settlements.append({
+            "from": debtor["name"],
+            "to": creditor["name"],
+            "amount": transfer_amount
+        })
+
+        debtor["amount"] -= transfer_amount
+        creditor["amount"] -= transfer_amount
+
+        if debtor["amount"] < 0.01:
+            d_idx += 1
+        if creditor["amount"] < 0.01:
+            c_idx += 1
+
+    return {
+        "total_session_spend": total_spend,
+        "share_per_person": share_per_person,
+        "settlements": settlements
+    }

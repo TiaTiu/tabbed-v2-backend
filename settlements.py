@@ -42,8 +42,10 @@ def calculate_session_debts(session_data):
             # 2. Debit based on assigned items
             for item in receipt.items:
                 if item.participants:
-                    item_total_price = item.price * (item.quantity or 1)
+                    # FIX 1: item.price is already the total line price from Gemini. Do not multiply by quantity.
+                    item_total_price = item.price 
                     split_amount = item_total_price / len(item.participants)
+                    
                     for p in item.participants:
                         if p.id in balances:
                             balances[p.id]["net"] -= split_amount
@@ -56,7 +58,7 @@ def calculate_session_debts(session_data):
                                 })
                     assigned_total += item_total_price
 
-            # Distribute unassigned remainder (tax/tip) evenly
+            # Distribute unassigned remainder (tax/tip/discounts) evenly
             remainder = receipt.total_amount - assigned_total
             if remainder != 0 and num_participants > 0:
                 even_split = remainder / num_participants
@@ -64,12 +66,13 @@ def calculate_session_debts(session_data):
                     balances[p_id]["net"] -= even_split
                     if p_id in participant_breakdown_map:
                         participant_breakdown_map[p_id]["total_spent"] += even_split
-                        if remainder > 0:
-                            participant_breakdown_map[p_id]["items"].append({
-                                "name": "Tax / Service / Other (Split)",
-                                "quantity": 1,
-                                "price": even_split
-                            })
+                        
+                        # FIX 2: Allow negative remainders (discounts) to be appended and shown in the list
+                        participant_breakdown_map[p_id]["items"].append({
+                            "name": "Tax / Discount / Other (Split)",
+                            "quantity": 1,
+                            "price": even_split
+                        })
         else:
             # Fallback: If no items are assigned yet for this receipt, split the whole receipt evenly
             if num_participants > 0:

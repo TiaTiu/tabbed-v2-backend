@@ -4,13 +4,11 @@ class SessionCreate(BaseModel):
   name: str
 
 class SessionResponse(BaseModel):
-  id: int
-  name: str
-  participants: list = []
-  receipts: list = []
+    id: int
+    name: str
 
-  class Config:
-    from_attributes = True
+    class Config:
+        from_attributes = True  # Use orm_mode = True if you are on an older Pydantic version
 
 class ParticipantCreate(BaseModel):
   name: str

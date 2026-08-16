@@ -35,11 +35,8 @@ def calculate_session_debts(session_data):
         assigned_total = 0.0
         has_assignments = any(len(item.participants) > 0 for item in receipt.items)
 
-        # Collect all unique participants involved in this specific receipt
-        receipt_participant_ids = set()
-        for item in receipt.items:
-            for p in item.participants:
-                receipt_participant_ids.add(p.id)
+        # Track each participant's item spending on this receipt for proportional distribution
+        participant_receipt_spend = {p.id: 0.0 for p in participants}
 
         if has_assignments:
             for item in receipt.items:
@@ -51,6 +48,7 @@ def calculate_session_debts(session_data):
                     for p in item.participants:
                         if p.id in balances:
                             balances[p.id]["net"] -= split_amount
+                            participant_receipt_spend[p.id] += split_amount
                             if p.id in participant_breakdown_map:
                                 participant_breakdown_map[p.id]["total_spent"] += split_amount
                                 participant_breakdown_map[p.id]["items"].append({
@@ -60,19 +58,23 @@ def calculate_session_debts(session_data):
                                 })
                     assigned_total += item_total_price
 
-            # Distribute unassigned remainder (tax/tip/discounts) ONLY among participants of this receipt
+            total_receipt_item_spend = sum(participant_receipt_spend.values())
             remainder = receipt.total_amount - assigned_total
-            if remainder != 0 and len(receipt_participant_ids) > 0:
-                even_split = remainder / len(receipt_participant_ids)
-                for p_id in receipt_participant_ids:
-                    if p_id in balances:
-                        balances[p_id]["net"] -= even_split
+
+            # Distribute unassigned remainder (taxes/discounts/fees) PROPORTIONATELY based on item spend
+            if remainder != 0 and total_receipt_item_spend > 0:
+                for p_id, spend in participant_receipt_spend.items():
+                    if spend > 0 and p_id in balances:
+                        proportion = spend / total_receipt_item_spend
+                        p_remainder_share = remainder * proportion
+                        
+                        balances[p_id]["net"] -= p_remainder_share
                         if p_id in participant_breakdown_map:
-                            participant_breakdown_map[p_id]["total_spent"] += even_split
+                            participant_breakdown_map[p_id]["total_spent"] += p_remainder_share
                             participant_breakdown_map[p_id]["items"].append({
-                                "name": "Tax / Discount / Other (Split)",
+                                "name": "Tax / Service / Discount (Proportional)",
                                 "quantity": 1,
-                                "price": even_split
+                                "price": p_remainder_share
                             })
         else:
             if num_participants > 0:

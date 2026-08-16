@@ -11,14 +11,12 @@ def calculate_session_debts(session_data):
 
     balances = {p.id: {"name": p.name, "net": 0.0} for p in participants}
     
-    # Track individual breakdown details for the summary view
     participant_breakdown_map = {
         p.id: {"name": p.name, "total_spent": 0.0, "total_paid": 0.0, "items": []} 
         for p in participants
     }
 
     for receipt in receipts:
-        # 1. Credit what participants paid
         receipt_paid_total = 0.0
         for payer_info in receipt.payers:
             if payer_info.participant_id in balances:
@@ -27,7 +25,6 @@ def calculate_session_debts(session_data):
                 if payer_info.participant_id in participant_breakdown_map:
                     participant_breakdown_map[payer_info.participant_id]["total_paid"] += payer_info.amount_paid
 
-        # Fallback: If nobody specified who paid for this receipt, split the receipt cost evenly as paid
         if receipt_paid_total == 0 and num_participants > 0:
             even_paid = receipt.total_amount / num_participants
             for p_id in balances:
@@ -38,14 +35,17 @@ def calculate_session_debts(session_data):
         assigned_total = 0.0
         has_assignments = any(len(item.participants) > 0 for item in receipt.items)
 
+        # Collect all unique participants involved in this specific receipt
+        receipt_participant_ids = set()
+        for item in receipt.items:
+            for p in item.participants:
+                receipt_participant_ids.add(p.id)
+
         if has_assignments:
-            # 2. Debit based on assigned items
             for item in receipt.items:
                 if item.participants:
                     item_total_price = item.price 
                     split_amount = item_total_price / len(item.participants)
-                    
-                    # Calculate clean integer quantity per person or default to 1
                     item_qty = int(item.quantity) if (item.quantity and len(item.participants) == 1) else 1
                     
                     for p in item.participants:
@@ -60,21 +60,21 @@ def calculate_session_debts(session_data):
                                 })
                     assigned_total += item_total_price
 
-            # Distribute unassigned remainder (tax/tip/discounts) evenly
+            # Distribute unassigned remainder (tax/tip/discounts) ONLY among participants of this receipt
             remainder = receipt.total_amount - assigned_total
-            if remainder != 0 and num_participants > 0:
-                even_split = remainder / num_participants
-                for p_id in balances:
-                    balances[p_id]["net"] -= even_split
-                    if p_id in participant_breakdown_map:
-                        participant_breakdown_map[p_id]["total_spent"] += even_split
-                        participant_breakdown_map[p_id]["items"].append({
-                            "name": "Tax / Discount / Other (Split)",
-                            "quantity": 1,
-                            "price": even_split
-                        })
+            if remainder != 0 and len(receipt_participant_ids) > 0:
+                even_split = remainder / len(receipt_participant_ids)
+                for p_id in receipt_participant_ids:
+                    if p_id in balances:
+                        balances[p_id]["net"] -= even_split
+                        if p_id in participant_breakdown_map:
+                            participant_breakdown_map[p_id]["total_spent"] += even_split
+                            participant_breakdown_map[p_id]["items"].append({
+                                "name": "Tax / Discount / Other (Split)",
+                                "quantity": 1,
+                                "price": even_split
+                            })
         else:
-            # Fallback: If no items are assigned yet for this receipt, split the whole receipt evenly
             if num_participants > 0:
                 even_split = receipt.total_amount / num_participants
                 for p_id in balances:

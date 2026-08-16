@@ -8,7 +8,7 @@ class SessionResponse(BaseModel):
     name: str
 
     class Config:
-        from_attributes = True  # Use orm_mode = True if you are on an older Pydantic version
+        from_attributes = True
 
 class ParticipantCreate(BaseModel):
   name: str
@@ -84,6 +84,11 @@ class ReceiptDetail(BaseModel):
   title: str
   total_amount: float
   image_url: str | None = None
+  subtotal: float = 0.0
+  tax: float = 0.0
+  service: float = 0.0
+  discount: float = 0.0
+  others: float = 0.0
   payers: list[ReceiptPayerDetail] = []
   items: list[ItemDetail] = []
 
@@ -96,6 +101,11 @@ class ReceiptResponse(BaseModel):
   total_amount: float
   session_id: int
   image_url: str | None = None
+  subtotal: float = 0.0
+  tax: float = 0.0
+  service: float = 0.0
+  discount: float = 0.0
+  others: float = 0.0
   payers: list[ReceiptPayerDetail] = []
 
   class Config:

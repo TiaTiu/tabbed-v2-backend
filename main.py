@@ -148,7 +148,7 @@ async def gemini_bulk_upload_receipts(
     if not api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY is missing on Railway.")
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     created_receipts = []
     
     for file in files:
@@ -161,13 +161,12 @@ async def gemini_bulk_upload_receipts(
             payload = {
                 "contents": [{
                     "parts": [
-                        {"text": "Analyze this food delivery receipt or invoice image. Look for the store name as 'title', the final grand total amount as a number under 'total_amount', and all ordered food/drink items under 'items'. Each item object must have 'name' (string), 'price' (number - total price for that line), and 'quantity' (integer, look at multipliers like '1x' or '2x' at the start of the item name, default to 1). Output valid JSON strictly matching this format without markdown code blocks: {\"title\": \"Store Name\", \"total_amount\": 77785.0, \"items\": [{\"name\": \"Full Flavored Thai Milk Tea\", \"price\": 40700.0, \"quantity\": 1}]}"},
+                        {"text": "Analyze this food delivery or restaurant receipt image. Extract the store name as 'title', 'subtotal', 'tax' (pajak/PPN), 'service' (servis/resto), 'discount' (diskon/promo/vouchers as negative or positive numbers matching receipt), 'others' (delivery fees, packaging/biaya kemasan, platform/biaya pemesanan), final grand total amount as 'total_amount', and all ordered food/drink items under 'items'. Each item object must have 'name' (string), 'price' (number - total line price), and 'quantity' (integer, look at multipliers like '1x' or '2x', default to 1). Output valid JSON strictly matching this format without markdown code blocks: {\"title\": \"Store Name\", \"subtotal\": 108900.0, \"tax\": 9900.0, \"service\": 0.0, \"discount\": -38115.0, \"others\": 16000.0, \"total_amount\": 77785.0, \"items\": [{\"name\": \"Full Flavored Thai Milk Tea\", \"price\": 40700.0, \"quantity\": 1}]}"},
                         {"inline_data": {"mime_type": mime_type, "data": base64_image}}
                     ]
                 }],
                 "generationConfig": {
-                    "response_mime_type": "application/json",
-                    "thinking_config": {"thinking_level": "low"}
+                    "response_mime_type": "application/json"
                 }
             }
             
@@ -202,16 +201,31 @@ async def gemini_bulk_upload_receipts(
             data = json.loads(cleaned_text)
             title = data.get("title", file.filename.split('.')[0])
             
-            raw_total = data.get("total_amount", 0)
-            if isinstance(raw_total, str):
-                raw_total = raw_total.replace(",", "").replace(".", "").replace("Rp", "").strip()
-            total_amount = float(raw_total or 0.0)
+            def parse_float(val):
+                if isinstance(val, str):
+                    val = val.replace(",", "").replace(".", "").replace("Rp", "").strip()
+                try:
+                    return float(val or 0.0)
+                except (ValueError, TypeError):
+                    return 0.0
+
+            total_amount = parse_float(data.get("total_amount", 0))
+            subtotal = parse_float(data.get("subtotal", 0))
+            tax = parse_float(data.get("tax", 0))
+            service = parse_float(data.get("service", 0))
+            discount = parse_float(data.get("discount", 0))
+            others = parse_float(data.get("others", 0))
             
             items = data.get("items", [])
 
             db_receipt = models.ReceiptModel(
                 title=title,
                 total_amount=total_amount,
+                subtotal=subtotal,
+                tax=tax,
+                service=service,
+                discount=discount,
+                others=others,
                 image_url=image_url,
                 session_id=session_id
             )
@@ -220,10 +234,7 @@ async def gemini_bulk_upload_receipts(
             db.refresh(db_receipt)
 
             for item in items:
-                raw_price = item.get("price", 0)
-                if isinstance(raw_price, str):
-                    raw_price = raw_price.replace(",", "").replace(".", "").replace("Rp", "").strip()
-                item_price = float(raw_price or 0.0)
+                item_price = parse_float(item.get("price", 0))
                 
                 raw_qty = item.get("quantity", 1)
                 try:

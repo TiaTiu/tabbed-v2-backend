@@ -34,6 +34,13 @@ class ReceiptModel(Base):
   image_url = Column(String, nullable=True)
   session_id = Column(Integer, ForeignKey("sessions.id"))
 
+  # Separate fee and discount columns
+  subtotal = Column(Float, default=0.0)
+  tax = Column(Float, default=0.0)
+  service = Column(Float, default=0.0)
+  discount = Column(Float, default=0.0)
+  others = Column(Float, default=0.0)
+
   session = relationship("SessionModel", back_populates="receipts")
   items = relationship("ItemModel", back_populates="receipt", cascade="all, delete-orphan")
   payers = relationship("ReceiptPayerModel", back_populates="receipt", cascade="all, delete-orphan")

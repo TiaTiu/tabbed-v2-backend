@@ -42,9 +42,11 @@ def calculate_session_debts(session_data):
             # 2. Debit based on assigned items
             for item in receipt.items:
                 if item.participants:
-                    # FIX 1: item.price is already the total line price from Gemini. Do not multiply by quantity.
                     item_total_price = item.price 
                     split_amount = item_total_price / len(item.participants)
+                    
+                    # Calculate clean integer quantity per person or default to 1
+                    item_qty = int(item.quantity) if (item.quantity and len(item.participants) == 1) else 1
                     
                     for p in item.participants:
                         if p.id in balances:
@@ -53,7 +55,7 @@ def calculate_session_debts(session_data):
                                 participant_breakdown_map[p.id]["total_spent"] += split_amount
                                 participant_breakdown_map[p.id]["items"].append({
                                     "name": item.name,
-                                    "quantity": item.quantity or 1,
+                                    "quantity": item_qty,
                                     "price": split_amount
                                 })
                     assigned_total += item_total_price
@@ -66,8 +68,6 @@ def calculate_session_debts(session_data):
                     balances[p_id]["net"] -= even_split
                     if p_id in participant_breakdown_map:
                         participant_breakdown_map[p_id]["total_spent"] += even_split
-                        
-                        # FIX 2: Allow negative remainders (discounts) to be appended and shown in the list
                         participant_breakdown_map[p_id]["items"].append({
                             "name": "Tax / Discount / Other (Split)",
                             "quantity": 1,
@@ -90,6 +90,9 @@ def calculate_session_debts(session_data):
     debtors = []
     creditors = []
     for p_id, data in balances.items():
+        if p_id in participant_breakdown_map:
+            participant_breakdown_map[p_id]["net_balance"] = data["net"]
+
         if data["net"] < -0.01:
             debtors.append({"id": p_id, "name": data["name"], "amount": -data["net"]})
         elif data["net"] > 0.01:

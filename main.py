@@ -71,6 +71,16 @@ def create_receipt(receipt: schemas.ReceiptCreate, db: Session = Depends(databas
     db.refresh(db_receipt)
     return db_receipt
 
+@app.delete("/receipts/{receipt_id}")
+def delete_receipt(receipt_id: int, db: Session = Depends(database.get_db)):
+    db_receipt = db.query(models.ReceiptModel).filter(models.ReceiptModel.id == receipt_id).first()
+    if not db_receipt:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+    
+    db.delete(db_receipt)
+    db.commit()
+    return {"message": "Receipt deleted successfully"}
+
 @app.put("/receipts/{receipt_id}/payers", response_model=schemas.ReceiptDetail)
 def update_receipt_payers(
     receipt_id: int,

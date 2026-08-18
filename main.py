@@ -73,6 +73,9 @@ def delete_participant(participant_id: int, db: Session = Depends(database.get_d
     if not db_participant:
         raise HTTPException(status_code=404, detail="Participant not found")
     
+    # Clean up payer records first to prevent ghost re-appearance
+    db.query(models.ReceiptPayerModel).filter(models.ReceiptPayerModel.participant_id == participant_id).delete()
+    
     db.delete(db_participant)
     db.commit()
     return {"message": "Participant deleted successfully"}

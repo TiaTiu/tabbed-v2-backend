@@ -41,6 +41,24 @@ def create_session(session: schemas.SessionCreate, db: Session = Depends(databas
     db.refresh(db_session)
     return db_session
 
+@app.delete("/sessions/{session_id}")
+def delete_session(session_id: int, db: Session = Depends(database.get_db)):
+    db_session = db.query(models.SessionModel).filter(models.SessionModel.id == session_id).first()
+    if not db_session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    receipts = db.query(models.ReceiptModel).filter(models.ReceiptModel.session_id == session_id).all()
+    for r in receipts:
+        db.query(models.ReceiptPayerModel).filter(models.ReceiptPayerModel.receipt_id == r.id).delete()
+        db.query(models.ItemModel).filter(models.ItemModel.receipt_id == r.id).delete()
+        db.delete(r)
+
+    db.query(models.ParticipantModel).filter(models.ParticipantModel.session_id == session_id).delete()
+    
+    db.delete(db_session)
+    db.commit()
+    return {"message": "Session and all associated data deleted successfully"}
+
 @app.post("/participants/", response_model=schemas.ParticipantResponse)
 def create_participant(participant: schemas.ParticipantCreate, db: Session = Depends(database.get_db)):
     db_participant = models.ParticipantModel(name=participant.name, session_id=participant.session_id)

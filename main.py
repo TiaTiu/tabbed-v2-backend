@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 import models
 import schemas
-from settlements import calculate_session_debts
+from settlements import calculate_event_debts
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
 
@@ -29,39 +29,39 @@ app.add_middleware(
 def read_root():
     return {"message": "Welcome to Tabbed V2 API - Multi-Receipt Ledger System"}
 
-@app.get("/sessions/", response_model=list[schemas.SessionResponse])
-def get_sessions(db: Session = Depends(database.get_db)):
-    return db.query(models.SessionModel).all()
+@app.get("/events/", response_model=list[schemas.EventResponse])
+def get_events(db: Session = Depends(database.get_db)):
+    return db.query(models.EventModel).all()
 
-@app.post("/sessions/", response_model=schemas.SessionResponse)
-def create_session(session: schemas.SessionCreate, db: Session = Depends(database.get_db)):
-    db_session = models.SessionModel(name=session.name)
-    db.add(db_session)
+@app.post("/events/", response_model=schemas.EventResponse)
+def create_event(event: schemas.EventCreate, db: Session = Depends(database.get_db)):
+    db_event = models.EventModel(name=event.name)
+    db.add(db_event)
     db.commit()
-    db.refresh(db_session)
-    return db_session
+    db.refresh(db_event)
+    return db_event
 
-@app.delete("/sessions/{session_id}")
-def delete_session(session_id: int, db: Session = Depends(database.get_db)):
-    db_session = db.query(models.SessionModel).filter(models.SessionModel.id == session_id).first()
-    if not db_session:
-        raise HTTPException(status_code=404, detail="Session not found")
+@app.delete("/events/{event_id}")
+def delete_event(event_id: int, db: Session = Depends(database.get_db)):
+    db_event = db.query(models.EventModel).filter(models.EventModel.id == event_id).first()
+    if not db_event:
+        raise HTTPException(status_code=404, detail="Event not found")
 
-    receipts = db.query(models.ReceiptModel).filter(models.ReceiptModel.session_id == session_id).all()
+    receipts = db.query(models.ReceiptModel).filter(models.ReceiptModel.event_id == event_id).all()
     for r in receipts:
         db.query(models.ReceiptPayerModel).filter(models.ReceiptPayerModel.receipt_id == r.id).delete()
         db.query(models.ItemModel).filter(models.ItemModel.receipt_id == r.id).delete()
         db.delete(r)
 
-    db.query(models.ParticipantModel).filter(models.ParticipantModel.session_id == session_id).delete()
+    db.query(models.ParticipantModel).filter(models.ParticipantModel.event_id == event_id).delete()
     
-    db.delete(db_session)
+    db.delete(db_event)
     db.commit()
-    return {"message": "Session and all associated data deleted successfully"}
+    return {"message": "Event and all associated data deleted successfully"}
 
 @app.post("/participants/", response_model=schemas.ParticipantResponse)
 def create_participant(participant: schemas.ParticipantCreate, db: Session = Depends(database.get_db)):
-    db_participant = models.ParticipantModel(name=participant.name, session_id=participant.session_id)
+    db_participant = models.ParticipantModel(name=participant.name, event_id=participant.event_id)
     db.add(db_participant)
     db.commit()
     db.refresh(db_participant)
@@ -82,7 +82,7 @@ def create_receipt(receipt: schemas.ReceiptCreate, db: Session = Depends(databas
     db_receipt = models.ReceiptModel(
         title=receipt.title,
         total_amount=receipt.total_amount,
-        session_id=receipt.session_id,
+        event_id=receipt.event_id,
     )
     db.add(db_receipt)
     db.commit()
@@ -151,24 +151,24 @@ def assign_item_to_participants(
     db.refresh(db_item)
     return db_item
 
-@app.get("/sessions/{session_id}", response_model=schemas.SessionDetailResponse)
-def get_session_details(session_id: int, db: Session = Depends(database.get_db)):
-    db_session = db.query(models.SessionModel).filter(models.SessionModel.id == session_id).first()
-    if not db_session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    return db_session
+@app.get("/events/{event_id}", response_model=schemas.EventDetailResponse)
+def get_event_details(event_id: int, db: Session = Depends(database.get_db)):
+    db_event = db.query(models.EventModel).filter(models.EventModel.id == event_id).first()
+    if not db_event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return db_event
 
-@app.get("/sessions/{session_id}/settlement")
-def get_session_settlement(session_id: int, db: Session = Depends(database.get_db)):
-    db_session = db.query(models.SessionModel).filter(models.SessionModel.id == session_id).first()
-    if not db_session:
-        raise HTTPException(status_code=404, detail="Session not found")
+@app.get("/events/{event_id}/settlement")
+def get_event_settlement(event_id: int, db: Session = Depends(database.get_db)):
+    db_event = db.query(models.EventModel).filter(models.EventModel.id == event_id).first()
+    if not db_event:
+        raise HTTPException(status_code=404, detail="Event not found")
 
-    return calculate_session_debts(db_session)
+    return calculate_event_debts(db_event)
 
-@app.post("/sessions/{session_id}/receipts/gemini-bulk-upload")
+@app.post("/events/{event_id}/receipts/gemini-bulk-upload")
 async def gemini_bulk_upload_receipts(
-    session_id: int,
+    event_id: int,
     files: list[UploadFile] = File(...),
     db: Session = Depends(database.get_db)
 ):
@@ -255,7 +255,7 @@ async def gemini_bulk_upload_receipts(
                 discount=discount,
                 others=others,
                 image_url=image_url,
-                session_id=session_id
+                event_id=event_id
             )
             db.add(db_receipt)
             db.commit()

@@ -1,9 +1,9 @@
-def calculate_session_debts(session_data):
-    participants = session_data.participants
-    receipts = session_data.receipts
+def calculate_event_debts(event_data):
+    participants = event_data.participants
+    receipts = event_data.receipts
 
     if not participants:
-        return {"total_session_spend": 0, "share_per_person": 0, "participant_breakdown": [], "settlements": []}
+        return {"total_event_spend": 0, "share_per_person": 0, "participant_breakdown": [], "settlements": []}
 
     num_participants = len(participants)
     total_spend = sum(receipt.total_amount for receipt in receipts)
@@ -72,7 +72,7 @@ def calculate_session_debts(session_data):
                         if p_id in participant_breakdown_map:
                             participant_breakdown_map[p_id]["total_spent"] += p_remainder_share
                             participant_breakdown_map[p_id]["items"].append({
-                                "name": "Tax / Service / Discount (Proportional)",
+                                "name": "Tax / Service / Discount",
                                 "quantity": 1,
                                 "price": p_remainder_share
                             })
@@ -125,7 +125,7 @@ def calculate_session_debts(session_data):
             c_idx += 1
 
     return {
-        "total_session_spend": total_spend,
+        "total_event_spend": total_spend,
         "share_per_person": share_per_person,
         "participant_breakdown": list(participant_breakdown_map.values()),
         "settlements": settlements

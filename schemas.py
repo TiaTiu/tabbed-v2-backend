@@ -1,9 +1,9 @@
 from pydantic import BaseModel
 
-class SessionCreate(BaseModel):
+class EventCreate(BaseModel):
   name: str
 
-class SessionResponse(BaseModel):
+class EventResponse(BaseModel):
     id: int
     name: str
 
@@ -12,12 +12,12 @@ class SessionResponse(BaseModel):
 
 class ParticipantCreate(BaseModel):
   name: str
-  session_id: int
+  event_id: int
 
 class ParticipantResponse(BaseModel):
   id: int
   name: str
-  session_id: int
+  event_id: int
 
   class Config:
     from_attributes = True
@@ -25,7 +25,7 @@ class ParticipantResponse(BaseModel):
 class ReceiptCreate(BaseModel):
   title: str
   total_amount: float
-  session_id: int
+  event_id: int
 
 class PayerContribution(BaseModel):
   participant_id: int
@@ -99,7 +99,7 @@ class ReceiptResponse(BaseModel):
   id: int
   title: str
   total_amount: float
-  session_id: int
+  event_id: int
   image_url: str | None = None
   subtotal: float = 0.0
   tax: float = 0.0
@@ -111,7 +111,7 @@ class ReceiptResponse(BaseModel):
   class Config:
     from_attributes = True
 
-class SessionDetailResponse(BaseModel):
+class EventDetailResponse(BaseModel):
   id: int
   name: str
   participants: list[ParticipantDetail] = []

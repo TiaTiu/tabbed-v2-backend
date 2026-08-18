@@ -9,21 +9,21 @@ item_participant_association = Table(
     Column("participant_id", Integer, ForeignKey("participants.id"), primary_key=True)
 )
 
-class SessionModel(Base):
-  __tablename__ = "sessions"
+class EventModel(Base):
+  __tablename__ = "events"
   id = Column(Integer, primary_key=True, index=True)
   name = Column(String, index=True)
 
-  receipts = relationship("ReceiptModel", back_populates="session", cascade="all, delete-orphan")
-  participants = relationship("ParticipantModel", back_populates="session", cascade="all, delete-orphan")
+  receipts = relationship("ReceiptModel", back_populates="event", cascade="all, delete-orphan")
+  participants = relationship("ParticipantModel", back_populates="event", cascade="all, delete-orphan")
 
 class ParticipantModel(Base):
   __tablename__ = "participants"
   id = Column(Integer, primary_key=True, index=True)
   name = Column(String, index=True)
-  session_id = Column(Integer, ForeignKey("sessions.id"))
+  event_id = Column(Integer, ForeignKey("events.id"))
 
-  session = relationship("SessionModel", back_populates="participants")
+  event = relationship("EventModel", back_populates="participants")
   items = relationship("ItemModel", secondary=item_participant_association, back_populates="participants")
 
 class ReceiptModel(Base):
@@ -32,7 +32,7 @@ class ReceiptModel(Base):
   title = Column(String)
   total_amount = Column(Float)
   image_url = Column(String, nullable=True)
-  session_id = Column(Integer, ForeignKey("sessions.id"))
+  event_id = Column(Integer, ForeignKey("events.id"))
 
   # Separate fee and discount columns
   subtotal = Column(Float, default=0.0)
@@ -41,7 +41,7 @@ class ReceiptModel(Base):
   discount = Column(Float, default=0.0)
   others = Column(Float, default=0.0)
 
-  session = relationship("SessionModel", back_populates="receipts")
+  event = relationship("EventModel", back_populates="receipts")
   items = relationship("ItemModel", back_populates="receipt", cascade="all, delete-orphan")
   payers = relationship("ReceiptPayerModel", back_populates="receipt", cascade="all, delete-orphan")
 

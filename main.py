@@ -179,7 +179,7 @@ async def gemini_bulk_upload_receipts(
     if not api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY is missing on Railway.")
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     created_receipts = []
     
     for file in files:
@@ -192,7 +192,16 @@ async def gemini_bulk_upload_receipts(
             payload = {
                 "contents": [{
                     "parts": [
-                        {"text": "Analyze this food delivery or restaurant receipt image. Extract the store name as 'title', 'subtotal', 'tax' (pajak/PPN), 'service' (servis/resto), 'discount' (diskon/promo/vouchers as negative or positive numbers matching receipt), 'others' (delivery fees, packaging/biaya kemasan, platform/biaya pemesanan), final grand total amount as 'total_amount', and all ordered food/drink items under 'items'. Each item object must have 'name' (string), 'price' (number - total line price), and 'quantity' (integer, look at multipliers like '1x' or '2x', default to 1). Output valid JSON strictly matching this format without markdown code blocks: {\"title\": \"Store Name\", \"subtotal\": 108900.0, \"tax\": 9900.0, \"service\": 0.0, \"discount\": -38115.0, \"others\": 16000.0, \"total_amount\": 77785.0, \"items\": [{\"name\": \"Full Flavored Thai Milk Tea\", \"price\": 40700.0, \"quantity\": 1}]}"},
+                        {
+                            "text": (
+                                "Analyze this food delivery or restaurant receipt image. Extract the store name as 'title', "
+                                "'subtotal', 'tax' (pajak/PPN), 'service' (servis/resto), 'discount' (sum up ALL individual promo vouchers, group order discounts, delivery promos, and off-percentage codes into a single cumulative negative number), "
+                                "'others' (delivery fees, packaging/biaya kemasan, platform/biaya pemesanan), final grand total amount as 'total_amount', and all ordered food/drink items under 'items'. "
+                                "Each item object must have 'name' (string), 'price' (number - total line price), and 'quantity' (integer, look at multipliers like '1x' or '2x', default to 1). "
+                                "Output valid JSON strictly matching this format without markdown code blocks: "
+                                '{"title": "Store Name", "subtotal": 108900.0, "tax": 9900.0, "service": 0.0, "discount": -72311.0, "others": 16000.0, "total_amount": 77785.0, "items": [{"name": "Full Flavored Thai Milk Tea", "price": 40700.0, "quantity": 1}]}'
+                            )
+                        },
                         {"inline_data": {"mime_type": mime_type, "data": base64_image}}
                     ]
                 }],

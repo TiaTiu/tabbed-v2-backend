@@ -194,11 +194,13 @@ async def gemini_bulk_upload_receipts(
                         {
                             "text": (
                                 "Analyze this food delivery or restaurant receipt image. Extract the store name as 'title', "
-                                "'subtotal', 'tax' (pajak/PPN), 'service' (servis/resto), 'discount' (sum up ALL individual promo vouchers, group order discounts, delivery promos, and off-percentage codes into a single cumulative negative number), "
-                                "'others' (delivery fees, packaging/biaya kemasan, platform/biaya pemesanan), final grand total amount as 'total_amount', and all ordered food/drink items under 'items'. "
+                                "'subtotal', 'tax' (pajak/PPN), 'service' (servis/resto), "
+                                "'discount' (sum up all negative discount lines, promo codes, and vouchers into a single cumulative negative number), "
+                                "'others' (sum up all positive delivery fees, packaging fees, and platform/ordering fees as a gross total, EXCLUDING any negative discount/promo lines which belong in discount), "
+                                "final grand total amount as 'total_amount', and all ordered food/drink items under 'items'. "
                                 "Each item object must have 'name' (string), 'price' (number - total line price), and 'quantity' (integer, look at multipliers like '1x' or '2x', default to 1). "
                                 "Output valid JSON strictly matching this format without markdown code blocks: "
-                                '{"title": "Store Name", "subtotal": 108900.0, "tax": 9900.0, "service": 0.0, "discount": -72311.0, "others": 16000.0, "total_amount": 77785.0, "items": [{"name": "Full Flavored Thai Milk Tea", "price": 40700.0, "quantity": 1}]}'
+                                '{"title": "Store Name", "subtotal": 0.0, "tax": 0.0, "service": 0.0, "discount": 0.0, "others": 0.0, "total_amount": 0.0, "items": [{"name": "Item Name", "price": 0.0, "quantity": 1}]}'
                             )
                         },
                         {"inline_data": {"mime_type": mime_type, "data": base64_image}}

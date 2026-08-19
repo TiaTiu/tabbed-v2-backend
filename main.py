@@ -73,7 +73,6 @@ def delete_participant(participant_id: int, db: Session = Depends(database.get_d
     if not db_participant:
         raise HTTPException(status_code=404, detail="Participant not found")
     
-    # Clean up payer records first to prevent ghost re-appearance
     db.query(models.ReceiptPayerModel).filter(models.ReceiptPayerModel.participant_id == participant_id).delete()
     
     db.delete(db_participant)
@@ -179,7 +178,7 @@ async def gemini_bulk_upload_receipts(
     if not api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY is missing on Railway.")
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
     created_receipts = []
     
     for file in files:

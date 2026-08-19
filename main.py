@@ -153,6 +153,30 @@ def assign_item_to_participants(
     db.refresh(db_item)
     return db_item
 
+@app.put("/items/{item_id}/price")
+def update_item_price(item_id: int, payload: dict, db: Session = Depends(database.get_db)):
+    db_item = db.query(models.ItemModel).filter(models.ItemModel.id == item_id).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+    if "price" in payload:
+        db_item.price = float(payload["price"])
+        db.commit()
+    return {"message": "Price updated"}
+
+@app.put("/receipts/{receipt_id}/{field}")
+def update_receipt_fee(receipt_id: int, field: str, payload: dict, db: Session = Depends(database.get_db)):
+    db_receipt = db.query(models.ReceiptModel).filter(models.ReceiptModel.id == receipt_id).first()
+    if not db_receipt:
+        raise HTTPException(status_code=404, detail="Receipt not found")
+    
+    allowed_fields = ["tax", "service", "discount", "others", "total_amount", "subtotal"]
+    if field in allowed_fields and field in payload:
+        setattr(db_receipt, field, float(payload[field]))
+        db.commit()
+        return {"message": f"{field} updated"}
+    raise HTTPException(status_code=400, detail="Invalid field")
+
 @app.get("/events/{event_id}", response_model=schemas.EventDetailResponse)
 def get_event_details(event_id: int, db: Session = Depends(database.get_db)):
     db_event = db.query(models.EventModel).filter(models.EventModel.id == event_id).first()

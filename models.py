@@ -5,8 +5,8 @@ from sqlalchemy.orm import relationship
 item_participant_association = Table(
     "item_participants",
     Base.metadata,
-    Column("item_id", Integer, ForeignKey("items.id"), primary_key=True),
-    Column("participant_id", Integer, ForeignKey("participants.id"), primary_key=True)
+    Column("item_id", Integer, ForeignKey("items.id", ondelete="CASCADE"), primary_key=True),
+    Column("participant_id", Integer, ForeignKey("participants.id", ondelete="CASCADE"), primary_key=True)
 )
 
 class EventModel(Base):
@@ -21,7 +21,7 @@ class ParticipantModel(Base):
   __tablename__ = "participants"
   id = Column(Integer, primary_key=True, index=True)
   name = Column(String, index=True)
-  event_id = Column(Integer, ForeignKey("events.id"))
+  event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"))
 
   event = relationship("EventModel", back_populates="participants")
   items = relationship("ItemModel", secondary=item_participant_association, back_populates="participants")
@@ -32,7 +32,7 @@ class ReceiptModel(Base):
   title = Column(String)
   total_amount = Column(Float)
   image_url = Column(String, nullable=True)
-  event_id = Column(Integer, ForeignKey("events.id"))
+  event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"))
 
   # Separate fee and discount columns
   subtotal = Column(Float, default=0.0)
@@ -47,8 +47,8 @@ class ReceiptModel(Base):
 
 class ReceiptPayerModel(Base):
   __tablename__ = "receipt_payers"
-  receipt_id = Column(Integer, ForeignKey("receipts.id"), primary_key=True)
-  participant_id = Column(Integer, ForeignKey("participants.id"), primary_key=True)
+  receipt_id = Column(Integer, ForeignKey("receipts.id", ondelete="CASCADE"), primary_key=True)
+  participant_id = Column(Integer, ForeignKey("participants.id", ondelete="CASCADE"), primary_key=True)
   amount_paid = Column(Float, default=0.0)
 
   receipt = relationship("ReceiptModel", back_populates="payers")
@@ -61,7 +61,7 @@ class ItemModel(Base):
   name = Column(String)
   price = Column(Float)
   quantity = Column(Integer, default=1)
-  receipt_id = Column(Integer, ForeignKey("receipts.id"))
+  receipt_id = Column(Integer, ForeignKey("receipts.id", ondelete="CASCADE"))
 
   receipt = relationship("ReceiptModel", back_populates="items")
   participants = relationship("ParticipantModel", secondary=item_participant_association, back_populates="items")

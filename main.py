@@ -47,14 +47,6 @@ def delete_event(event_id: int, db: Session = Depends(database.get_db)):
     if not db_event:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    receipts = db.query(models.ReceiptModel).filter(models.ReceiptModel.event_id == event_id).all()
-    for r in receipts:
-        db.query(models.ReceiptPayerModel).filter(models.ReceiptPayerModel.receipt_id == r.id).delete()
-        db.query(models.ItemModel).filter(models.ItemModel.receipt_id == r.id).delete()
-        db.delete(r)
-
-    db.query(models.ParticipantModel).filter(models.ParticipantModel.event_id == event_id).delete()
-    
     db.delete(db_event)
     db.commit()
     return {"message": "Event and all associated data deleted successfully"}
@@ -202,7 +194,7 @@ async def gemini_bulk_upload_receipts(
     if not api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY is missing on Railway.")
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     created_receipts = []
     
     for file in files:

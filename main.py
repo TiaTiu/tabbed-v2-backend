@@ -96,9 +96,13 @@ def delete_receipt(receipt_id: int, db: Session = Depends(database.get_db)):
     if not db_receipt:
         raise HTTPException(status_code=404, detail="Receipt not found")
     
+    # Explicitly clear dependent records to prevent database constraint locks and ghost records
+    db.query(models.ReceiptPayerModel).filter(models.ReceiptPayerModel.receipt_id == receipt_id).delete()
+    db.query(models.ItemModel).filter(models.ItemModel.receipt_id == receipt_id).delete()
+    
     db.delete(db_receipt)
     db.commit()
-    return {"message": "Receipt deleted successfully"}
+    return {"message": "Receipt and all associated items deleted successfully"}
 
 @app.put("/receipts/{receipt_id}/payers", response_model=schemas.ReceiptDetail)
 def update_receipt_payers(
@@ -201,7 +205,7 @@ async def gemini_bulk_upload_receipts(
     if not api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY is missing on Railway.")
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     created_receipts = []
     
     for file in files:

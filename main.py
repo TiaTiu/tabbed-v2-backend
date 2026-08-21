@@ -10,6 +10,7 @@ import schemas
 from settlements import calculate_event_debts
 from sqlalchemy.orm import Session
 from dotenv import load_dotenv
+from typing import Optional
 
 load_dotenv()
 
@@ -30,12 +31,18 @@ def read_root():
     return {"message": "Welcome to Tabbed V2 API - Multi-Receipt Ledger System"}
 
 @app.get("/events/", response_model=list[schemas.EventResponse])
-def get_events(db: Session = Depends(database.get_db)):
-    return db.query(models.EventModel).all()
+def get_events(owner_token: Optional[str] = None, db: Session = Depends(database.get_db)):
+    query = db.query(models.EventModel)
+    if owner_token:
+        query = query.filter(models.EventModel.owner_token == owner_token)
+    return query.all()
 
 @app.post("/events/", response_model=schemas.EventResponse)
 def create_event(event: schemas.EventCreate, db: Session = Depends(database.get_db)):
-    db_event = models.EventModel(name=event.name)
+    db_event = models.EventModel(
+        name=event.name, 
+        owner_token=event.owner_token
+    )
     db.add(db_event)
     db.commit()
     db.refresh(db_event)

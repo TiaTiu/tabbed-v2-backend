@@ -2,10 +2,12 @@ from pydantic import BaseModel
 
 class EventCreate(BaseModel):
   name: str
+  owner_token: str | None = None
 
 class EventResponse(BaseModel):
     id: int
     name: str
+    owner_token: str | None = None
 
     class Config:
         from_attributes = True
@@ -114,6 +116,7 @@ class ReceiptResponse(BaseModel):
 class EventDetailResponse(BaseModel):
   id: int
   name: str
+  owner_token: str | None = None
   participants: list[ParticipantDetail] = []
   receipts: list[ReceiptDetail] = []
 

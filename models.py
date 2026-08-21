@@ -13,6 +13,7 @@ class EventModel(Base):
   __tablename__ = "events"
   id = Column(Integer, primary_key=True, index=True)
   name = Column(String, index=True)
+  owner_token = Column(String, nullable=True, index=True)
 
   receipts = relationship("ReceiptModel", back_populates="event", cascade="all, delete-orphan")
   participants = relationship("ParticipantModel", back_populates="event", cascade="all, delete-orphan")

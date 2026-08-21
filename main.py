@@ -216,13 +216,16 @@ async def gemini_bulk_upload_receipts(
                     "parts": [
                         {
                             "text": (
-                                "Analyze this food delivery or restaurant receipt image. Extract the store name as 'title', "
-                                "'subtotal', 'tax' (pajak/PPN), 'service' (servis/resto), "
-                                "'discount' (sum up all negative discount lines, promo codes, and vouchers into a single cumulative negative number), "
-                                "'others' (sum up all positive delivery fees, packaging fees, and platform/ordering fees as a gross total, EXCLUDING any negative discount/promo lines which belong in discount), "
-                                "final grand total amount as 'total_amount', and all ordered food/drink items under 'items'. "
-                                "Each item object must have 'name' (string), 'price' (number - total line price), and 'quantity' (integer, look at multipliers like '1x' or '2x', default to 1). "
-                                "Output valid JSON strictly matching this format without markdown code blocks: "
+                                "Analyze this Indonesian food delivery (GrabFood/GoFood) or restaurant receipt image. Extract exactly these fields:\n"
+                                "1. 'title': Store name.\n"
+                                "2. 'subtotal': Total of food items before fees/taxes.\n"
+                                "3. 'tax': 'Pajak', 'PB1', or 'PPN' amount.\n"
+                                "4. 'service': 'Service charge' or 'Biaya kemasan resto' (packaging fee).\n"
+                                "5. 'discount': Sum of ALL negative (-) amounts (e.g., promo codes, 'Delivery disc'). Ignore distracting text like '10rb' in the name, ONLY read the final minus value on the right.\n"
+                                "6. 'others': Sum of ALL positive additional fees (e.g., 'Biaya Pengiriman' / delivery, 'Biaya Pemesanan' / order fee, platform fees).\n"
+                                "7. 'total_amount': The exact final 'TOTAL (INCL. TAX)' or 'TOTAL' printed at the bottom of the receipt.\n"
+                                "8. 'items': Array of ordered items. 'name' (string), 'price' (total line price, number), 'quantity' (integer). Ignore fees/discounts in the items list.\n\n"
+                                "Output strictly valid JSON matching this format without markdown:\n"
                                 '{"title": "Store Name", "subtotal": 0.0, "tax": 0.0, "service": 0.0, "discount": 0.0, "others": 0.0, "total_amount": 0.0, "items": [{"name": "Item Name", "price": 0.0, "quantity": 1}]}'
                             )
                         },

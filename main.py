@@ -53,7 +53,16 @@ def delete_event(event_id: int, db: Session = Depends(database.get_db)):
     db_event = db.query(models.EventModel).filter(models.EventModel.id == event_id).first()
     if not db_event:
         raise HTTPException(status_code=404, detail="Event not found")
-
+        
+    for receipt in db.query(models.ReceiptModel).filter(models.ReceiptModel.event_id == event_id).all():
+        db.query(models.ReceiptPayerModel).filter(models.ReceiptPayerModel.receipt_id == receipt.id).delete()
+        items = db.query(models.ItemModel).filter(models.ItemModel.receipt_id == receipt.id).all()
+        for item in items:
+            item.participants = [] 
+            db.delete(item)
+        db.delete(receipt)
+        
+    db.query(models.ParticipantModel).filter(models.ParticipantModel.event_id == event_id).delete()
     db.delete(db_event)
     db.commit()
     return {"message": "Event and all associated data deleted successfully"}
@@ -74,6 +83,10 @@ def delete_participant(participant_id: int, db: Session = Depends(database.get_d
     
     db.query(models.ReceiptPayerModel).filter(models.ReceiptPayerModel.participant_id == participant_id).delete()
     
+    items = db.query(models.ItemModel).filter(models.ItemModel.participants.any(id=participant_id)).all()
+    for item in items:
+        item.participants.remove(db_participant)
+        
     db.delete(db_participant)
     db.commit()
     return {"message": "Participant deleted successfully"}
@@ -96,10 +109,13 @@ def delete_receipt(receipt_id: int, db: Session = Depends(database.get_db)):
     if not db_receipt:
         raise HTTPException(status_code=404, detail="Receipt not found")
     
-    # Explicitly clear dependent records to prevent database constraint locks and ghost records
     db.query(models.ReceiptPayerModel).filter(models.ReceiptPayerModel.receipt_id == receipt_id).delete()
-    db.query(models.ItemModel).filter(models.ItemModel.receipt_id == receipt_id).delete()
     
+    items = db.query(models.ItemModel).filter(models.ItemModel.receipt_id == receipt_id).all()
+    for item in items:
+        item.participants = [] 
+        db.delete(item)
+        
     db.delete(db_receipt)
     db.commit()
     return {"message": "Receipt and all associated items deleted successfully"}

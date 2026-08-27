@@ -160,6 +160,13 @@ def update_receipt_payers(
     db.refresh(db_receipt)
     return db_receipt
 
+@app.get("/receipts/{receipt_id}/image")
+def get_receipt_image(receipt_id: int, db: Session = Depends(database.get_db)):
+    receipt = db.query(models.ReceiptModel.image_url).filter(models.ReceiptModel.id == receipt_id).first()
+    if not receipt or not receipt.image_url:
+        raise HTTPException(status_code=404, detail="Image not found")
+    return {"image_url": receipt.image_url}
+
 @app.post("/items/", response_model=schemas.ItemResponse)
 def create_item(item: schemas.ItemCreate, db: Session = Depends(database.get_db)):
     db_item = models.ItemModel(name=item.name, price=item.price, quantity=item.quantity, receipt_id=item.receipt_id)

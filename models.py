@@ -42,6 +42,10 @@ class ReceiptModel(Base):
   discount = Column(Float, default=0.0)
   others = Column(Float, default=0.0)
 
+  @property
+  def has_image(self) -> bool:
+      return bool(self.image_url)
+
   event = relationship("EventModel", back_populates="receipts")
   items = relationship("ItemModel", back_populates="receipt", cascade="all, delete-orphan")
   payers = relationship("ReceiptPayerModel", back_populates="receipt", cascade="all, delete-orphan")

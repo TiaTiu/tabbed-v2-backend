@@ -34,11 +34,9 @@ def run_migrations():
     if inspector.has_table("receipts"):
         columns = [col['name'] for col in inspector.get_columns('receipts')]
         with database.engine.connect() as conn:
-            # 1. Create column if it doesn't exist
             if "has_image" not in columns:
                 conn.execute(text("ALTER TABLE receipts ADD COLUMN has_image BOOLEAN DEFAULT FALSE"))
             
-            # 2. ALWAYS run the update to recover old data just in case it was skipped
             conn.execute(
                 text("UPDATE receipts SET has_image = :val WHERE image_url IS NOT NULL AND image_url != ''"),
                 {"val": True}
@@ -181,7 +179,6 @@ def update_receipt_payers(
 
 @app.get("/receipts/{receipt_id}/image")
 def get_receipt_image(receipt_id: int, db: Session = Depends(database.get_db)):
-    # .scalar() safely extracts the string directly from the deferred column query
     image_url_str = db.query(models.ReceiptModel.image_url).filter(models.ReceiptModel.id == receipt_id).scalar()
     
     if not image_url_str:
@@ -303,7 +300,8 @@ async def gemini_bulk_upload_receipts(
     if not api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY is missing on Railway.")
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    # Restored to Gemini 3.5 Flash Lite as requested
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
     created_receipts = []
     
     for file in files:

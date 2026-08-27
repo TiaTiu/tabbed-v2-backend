@@ -33,10 +33,10 @@ class ReceiptModel(Base):
   title = Column(String)
   total_amount = Column(Float)
   
-  # 1. DEFER the heavy image column so it never loads by default
+  # Heavy image column deferred to fix the 15-second lag
   image_url = deferred(Column(String, nullable=True))
   
-  # 2. Real column for has_image instead of a @property
+  # Real column so Pydantic can read it instantly without triggering a heavy query
   has_image = Column(Boolean, default=False)
   
   event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"))

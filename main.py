@@ -9,7 +9,7 @@ import models
 import schemas
 from settlements import calculate_event_debts
 from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 from dotenv import load_dotenv
 from typing import Optional
 
@@ -30,13 +30,16 @@ app.add_middleware(
 # --- ONE-TIME MIGRATION TO ADD COLUMN TO EXISTING DB ---
 @app.on_event("startup")
 def run_migrations():
-    with database.engine.connect() as conn:
-        res = conn.execute(text("PRAGMA table_info(receipts)")).fetchall()
-        columns = [row[1] for row in res]
+    inspector = inspect(database.engine)
+    if inspector.has_table("receipts"):
+        columns = [col['name'] for col in inspector.get_columns('receipts')]
         if "has_image" not in columns:
-            conn.execute(text("ALTER TABLE receipts ADD COLUMN has_image BOOLEAN DEFAULT 0"))
-            conn.execute(text("UPDATE receipts SET has_image = 1 WHERE image_url IS NOT NULL"))
-            conn.commit()
+            with database.engine.connect() as conn:
+                # Add the column using standard SQL (works for Postgres and SQLite)
+                conn.execute(text("ALTER TABLE receipts ADD COLUMN has_image BOOLEAN DEFAULT FALSE"))
+                # Backfill existing data
+                conn.execute(text("UPDATE receipts SET has_image = TRUE WHERE image_url IS NOT NULL"))
+                conn.commit()
 
 @app.get("/")
 def read_root():

@@ -183,6 +183,39 @@ def update_item_price(item_id: int, payload: dict, db: Session = Depends(databas
         db.commit()
     return {"message": "Price updated"}
 
+@app.post("/items/{item_id}/split")
+def split_item(item_id: int, db: Session = Depends(database.get_db)):
+    # 1. Fetch the original item
+    item = db.query(models.ItemModel).filter(models.ItemModel.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    
+    if item.quantity <= 1:
+        raise HTTPException(status_code=400, detail="Item quantity must be greater than 1 to split")
+    
+    # 2. Calculate the new unit price
+    unit_price = item.price / item.quantity
+    
+    # 3. Create the new individual items
+    new_items = []
+    for _ in range(item.quantity):
+        new_item = models.ItemModel(
+            receipt_id=item.receipt_id,
+            name=item.name, 
+            price=unit_price,
+            quantity=1
+        )
+        # Copy existing participants to the new split items so data isn't lost
+        new_item.participants = item.participants[:] 
+        db.add(new_item)
+        new_items.append(new_item)
+        
+    # 4. Delete the original grouped item
+    db.delete(item)
+    db.commit()
+    
+    return {"message": f"Item split into {item.quantity} individual items successfully."}
+
 @app.put("/receipts/{receipt_id}/{field}")
 def update_receipt_fee(receipt_id: int, field: str, payload: dict, db: Session = Depends(database.get_db)):
     db_receipt = db.query(models.ReceiptModel).filter(models.ReceiptModel.id == receipt_id).first()

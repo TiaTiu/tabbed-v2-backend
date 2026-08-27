@@ -8,7 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import models
 import schemas
 from settlements import calculate_event_debts
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import text
 from dotenv import load_dotenv
 from typing import Optional
 
@@ -25,6 +26,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# --- ONE-TIME MIGRATION TO ADD COLUMN TO EXISTING DB ---
+@app.on_event("startup")
+def run_migrations():
+    with database.engine.connect() as conn:
+        res = conn.execute(text("PRAGMA table_info(receipts)")).fetchall()
+        columns = [row[1] for row in res]
+        if "has_image" not in columns:
+            conn.execute(text("ALTER TABLE receipts ADD COLUMN has_image BOOLEAN DEFAULT 0"))
+            conn.execute(text("UPDATE receipts SET has_image = 1 WHERE image_url IS NOT NULL"))
+            conn.commit()
 
 @app.get("/")
 def read_root():
@@ -160,13 +172,14 @@ def update_receipt_payers(
     db.refresh(db_receipt)
     return db_receipt
 
-# Safe static route defined before any parameterized {field} routes
 @app.get("/receipts/{receipt_id}/image")
 def get_receipt_image(receipt_id: int, db: Session = Depends(database.get_db)):
-    db_receipt = db.query(models.ReceiptModel).filter(models.ReceiptModel.id == receipt_id).first()
-    if not db_receipt or not db_receipt.image_url:
+    # By querying ONLY the image_url column, we completely bypass the deferred loading 
+    # mechanism and avoid the DetachedInstanceError
+    receipt = db.query(models.ReceiptModel.image_url).filter(models.ReceiptModel.id == receipt_id).first()
+    if not receipt or not receipt.image_url:
         raise HTTPException(status_code=404, detail="Image not found")
-    return {"image_url": str(db_receipt.image_url)}
+    return {"image_url": str(receipt.image_url)}
 
 @app.post("/items/", response_model=schemas.ItemResponse)
 def create_item(item: schemas.ItemCreate, db: Session = Depends(database.get_db)):
@@ -247,20 +260,34 @@ def update_receipt_fee(receipt_id: int, field: str, payload: dict, db: Session =
         return {"message": f"{field} updated"}
     raise HTTPException(status_code=400, detail="Invalid field")
 
+
+# --- FIXING N+1 QUERY SLOWNESS ---
 @app.get("/events/{event_id}", response_model=schemas.EventDetailResponse)
 def get_event_details(event_id: int, db: Session = Depends(database.get_db)):
-    db_event = db.query(models.EventModel).filter(models.EventModel.id == event_id).first()
+    db_event = db.query(models.EventModel).options(
+        selectinload(models.EventModel.participants),
+        selectinload(models.EventModel.receipts).selectinload(models.ReceiptModel.items).selectinload(models.ItemModel.participants),
+        selectinload(models.EventModel.receipts).selectinload(models.ReceiptModel.payers)
+    ).filter(models.EventModel.id == event_id).first()
+    
     if not db_event:
         raise HTTPException(status_code=404, detail="Event not found")
     return db_event
 
+
 @app.get("/events/{event_id}/settlement")
 def get_event_settlement(event_id: int, db: Session = Depends(database.get_db)):
-    db_event = db.query(models.EventModel).filter(models.EventModel.id == event_id).first()
+    db_event = db.query(models.EventModel).options(
+        selectinload(models.EventModel.participants),
+        selectinload(models.EventModel.receipts).selectinload(models.ReceiptModel.items).selectinload(models.ItemModel.participants),
+        selectinload(models.EventModel.receipts).selectinload(models.ReceiptModel.payers)
+    ).filter(models.EventModel.id == event_id).first()
+    
     if not db_event:
         raise HTTPException(status_code=404, detail="Event not found")
 
     return calculate_event_debts(db_event)
+
 
 @app.post("/events/{event_id}/receipts/gemini-bulk-upload")
 async def gemini_bulk_upload_receipts(
@@ -365,6 +392,7 @@ async def gemini_bulk_upload_receipts(
                 discount=discount,
                 others=others,
                 image_url=image_url,
+                has_image=True,  # Set this explicitly to True upon upload
                 event_id=event_id
             )
             db.add(db_receipt)

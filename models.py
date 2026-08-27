@@ -1,6 +1,6 @@
 from database import Base
-from sqlalchemy import Column, Float, ForeignKey, Integer, String, Table
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Float, ForeignKey, Integer, String, Table, Boolean
+from sqlalchemy.orm import relationship, deferred
 
 item_participant_association = Table(
     "item_participants",
@@ -32,19 +32,20 @@ class ReceiptModel(Base):
   id = Column(Integer, primary_key=True, index=True)
   title = Column(String)
   total_amount = Column(Float)
-  image_url = Column(String, nullable=True)
+  
+  # 1. DEFER the heavy image column so it never loads by default
+  image_url = deferred(Column(String, nullable=True))
+  
+  # 2. Real column for has_image instead of a @property
+  has_image = Column(Boolean, default=False)
+  
   event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"))
 
-  # Separate fee and discount columns
   subtotal = Column(Float, default=0.0)
   tax = Column(Float, default=0.0)
   service = Column(Float, default=0.0)
   discount = Column(Float, default=0.0)
   others = Column(Float, default=0.0)
-
-  @property
-  def has_image(self) -> bool:
-      return bool(self.image_url)
 
   event = relationship("EventModel", back_populates="receipts")
   items = relationship("ItemModel", back_populates="receipt", cascade="all, delete-orphan")

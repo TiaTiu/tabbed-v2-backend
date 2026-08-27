@@ -162,7 +162,7 @@ def update_receipt_payers(
 
 @app.get("/receipts/{receipt_id}/image")
 def get_receipt_image(receipt_id: int, db: Session = Depends(database.get_db)):
-    receipt = db.query(models.ReceiptModel.image_url).filter(models.ReceiptModel.id == receipt_id).first()
+    receipt = db.query(models.ReceiptModel).filter(models.ReceiptModel.id == receipt_id).first()
     if not receipt or not receipt.image_url:
         raise HTTPException(status_code=404, detail="Image not found")
     return {"image_url": receipt.image_url}
@@ -271,7 +271,7 @@ async def gemini_bulk_upload_receipts(
     if not api_key:
         raise HTTPException(status_code=500, detail="GEMINI_API_KEY is missing on Railway.")
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
     created_receipts = []
     
     for file in files:

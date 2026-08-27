@@ -67,6 +67,21 @@ def delete_event(event_id: int, db: Session = Depends(database.get_db)):
     db.commit()
     return {"message": "Event and all associated data deleted successfully"}
 
+@app.delete("/events/delete-all")
+def delete_all_events(db: Session = Depends(database.get_db)):
+    db.query(models.ReceiptPayerModel).delete()
+    items = db.query(models.ItemModel).all()
+    for item in items:
+        item.participants = []
+    db.commit()
+
+    db.query(models.ItemModel).delete()
+    db.query(models.ReceiptModel).delete()
+    db.query(models.ParticipantModel).delete()
+    db.query(models.EventModel).delete()
+    db.commit()
+    return {"message": "All events and related data deleted successfully."}
+
 @app.post("/participants/", response_model=schemas.ParticipantResponse)
 def create_participant(participant: schemas.ParticipantCreate, db: Session = Depends(database.get_db)):
     db_participant = models.ParticipantModel(name=participant.name, event_id=participant.event_id)
@@ -185,7 +200,6 @@ def update_item_price(item_id: int, payload: dict, db: Session = Depends(databas
 
 @app.post("/items/{item_id}/split")
 def split_item(item_id: int, db: Session = Depends(database.get_db)):
-    # 1. Fetch the original item
     item = db.query(models.ItemModel).filter(models.ItemModel.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
@@ -193,10 +207,8 @@ def split_item(item_id: int, db: Session = Depends(database.get_db)):
     if item.quantity <= 1:
         raise HTTPException(status_code=400, detail="Item quantity must be greater than 1 to split")
     
-    # 2. Calculate the new unit price
     unit_price = item.price / item.quantity
     
-    # 3. Create the new individual items
     new_items = []
     for _ in range(item.quantity):
         new_item = models.ItemModel(
@@ -205,12 +217,10 @@ def split_item(item_id: int, db: Session = Depends(database.get_db)):
             price=unit_price,
             quantity=1
         )
-        # Copy existing participants to the new split items so data isn't lost
         new_item.participants = item.participants[:] 
         db.add(new_item)
         new_items.append(new_item)
         
-    # 4. Delete the original grouped item
     db.delete(item)
     db.commit()
     

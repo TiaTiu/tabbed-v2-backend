@@ -86,6 +86,7 @@ class ReceiptDetail(BaseModel):
   title: str
   total_amount: float
   has_image: bool = False
+  thumbnail_url: str | None = None
   subtotal: float = 0.0
   tax: float = 0.0
   service: float = 0.0
@@ -103,6 +104,7 @@ class ReceiptResponse(BaseModel):
   total_amount: float
   event_id: int
   has_image: bool = False
+  thumbnail_url: str | None = None
   subtotal: float = 0.0
   tax: float = 0.0
   service: float = 0.0
